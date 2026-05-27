@@ -80,12 +80,12 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f4f2ed;color:#1a2638;min-
 
 /* ── GRID ── */
 .grid-wrap{max-width:1200px;margin:0 auto;padding:24px 20px 36px}
-#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start}
 
 /* ── CARD ── */
 .card{background:var(--white);border-radius:var(--r14);border:1px solid var(--borderlt);overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit;transition:transform .22s,box-shadow .22s}
 .card:hover{transform:translateY(-4px);box-shadow:var(--shh)}
-.card-imgwrap{width:100%;aspect-ratio:16/9;overflow:hidden;background:#d8e8f8;position:relative;flex-shrink:0}
+.card-imgwrap{width:100%;aspect-ratio:16/9;overflow:hidden;background:#d8e8f8;position:relative;flex-shrink:0}.card-imgwrap.ratio11{aspect-ratio:1/1}.card-imgwrap.ratio11{aspect-ratio:1/1}
 .card-imgwrap img{width:100%;height:100%;object-fit:cover;transition:transform .35s;display:block}
 .card:hover .card-imgwrap img{transform:scale(1.05)}
 .card-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;opacity:.22}
@@ -160,7 +160,7 @@ footer strong{color:rgba(255,255,255,.75)}
 
 <div class="grid-wrap"><div id="grid"></div></div>
 <div class="pagination" id="pagination"></div>
-<footer><strong>翻轉教育</strong>　·　　Copyright © 親子天下. All rights reserved.</footer>
+<footer><strong>翻轉教育</strong>　Copyright © 親子天下. All rights reserved.</footer>
 
 <script>
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbysQMzbzVYzCAGJZHAyYmTXm3OYmcn2M4xf4z1YUrsPImPhjJ8yTHmmFZ1fnZugvBX1nw/exec';
@@ -297,8 +297,7 @@ function renderCards(){
     const tagsHTML=a.tags.map(t=>'<span class="card-otag">'+t+'</span>').join('');
     /* ★ 新卡片結構：標題大、日期在底部且小 */
     card.innerHTML=
-      '<div class="card-imgwrap">'
-      +(hi?'<img src="'+a.image+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">':'')
+      '<div class="card-imgwrap'+(a.resource?' ratio11':'')+'">'\n      +(hi?'<img src="'+a.image+'" alt="" loading="lazy" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">':'')
       +'<div class="card-ph" style="'+(hi?'display:none':'')+'">'+PH[i%6]+'</div>'
       +'<div class="card-overlay-tags">'+tagsHTML+'</div>'
       +'</div>'
@@ -311,7 +310,7 @@ function renderCards(){
       +'<span class="card-author"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>'+(a.author||'—')+'</span>'
       +'<span class="card-date">'+a.date+'</span>'
       +'</div>'
-      +'<span class="card-readlink">閱讀全文 <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg></span>'
+      +'<span class="card-readlink">'+(a.resource?'立即下載':'閱讀全文')+' <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg></span>'
       +'</div>';
     grid.appendChild(card);
   });
@@ -330,41 +329,71 @@ function renderPag(total){
 
 /* ── Load ── */
 async function loadData(){
-  try{
-    const res=await fetch(APPS_SCRIPT_URL);
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const rows=await res.json();
-    console.log('Apps Script 資料:', rows.length, '筆');
-    if(!Array.isArray(rows)||rows.length===0) throw new Error('empty');
-    const seen=new Set();
-    DATA=rows.map(r=>{
-      const title=String(r['article_title--h1']||'').trim();
-      if(!title||seen.has(title)) return null; seen.add(title);
-      const intro=String(r['article_introduction']||'').trim().replace(/\n/g,' ').substring(0,220);
-      if(!intro) return null;
-      const fv=String(r['featured']||'').toLowerCase();
-      const featured=['true','精選','yes','1'].includes(fv);
-      const tagStr=String(r['tags']||'');
-      const tags=tagStr?tagStr.split(/[,，、]+/).map(t=>t.trim()).filter(Boolean):[];
-      return{
-        url:String(r['網址']||''),
-        title,
-        author:String(r['article_author']||''),
-        date:String(r['publish_time']||'').substring(0,10),
-        summary:intro,
-        image:String(r['article_photo src']||''),
-        tags,featured
-      };
-    }).filter(Boolean);
-    if(DATA.length===0) throw new Error('no valid rows');
-  }catch(e){
-    console.warn('Apps Script 失敗，改用內嵌資料:', e.message);
-    DATA=DEMO;
-  }
+  const CACHE_KEY='bullying_cache_v1';
+  const CACHE_TTL=5*60*1000;
+
+  // ① 先用 DEMO 立刻顯示（file:// 或網路失敗都能看到內容）
+  DATA=DEMO;
   buildTagBtns();
   buildHero(DATA.filter(a=>a.featured));
   startTimer();
   renderCards();
+
+  // ② 嘗試從快取更新
+  try{
+    const cached=localStorage.getItem(CACHE_KEY);
+    if(cached){
+      const {ts,data}=JSON.parse(cached);
+      if(Date.now()-ts < CACHE_TTL){
+        DATA=data;
+        buildTagBtns();
+        buildHero(DATA.filter(a=>a.featured));
+        startTimer();
+        renderCards();
+      }
+    }
+  }catch(e){}
+
+  // ③ 背景抓 Apps Script（成功就更新畫面）
+  try{
+    const res=await fetch(APPS_SCRIPT_URL);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows=await res.json();
+    if(!Array.isArray(rows)||rows.length===0) throw new Error('empty');
+    const seen=new Set();
+    const parsed=rows.map(r=>{
+      const title=String(r['article_title--h1']||'').trim();
+      if(!title||seen.has(title)) return null; seen.add(title);
+      const fv=r['featured'];
+      const featured=(fv===true||['true','精選','yes','1'].includes(String(fv||'').toLowerCase()));
+      const tagStr=String(r['tags']||'');
+      const tags=tagStr?tagStr.split(/[,，、]+/).map(t=>t.trim()).filter(Boolean):[];
+      const resource=(String(r['resource']||'').toLowerCase()==='true');
+      return{
+        url:String(r['網址']||''),
+        resource,
+        title,
+        author:String(r['article_author']||''),
+        date:String(r['publish_time']||'').substring(0,10),
+        summary:String(r['article_introduction']||'').trim().replace(/
+/g,' ').substring(0,220),
+        image:String(r['article_photo src']||''),
+        tags,featured
+      };
+    }).filter(Boolean);
+    if(parsed.length===0) throw new Error('no valid rows');
+    if(!parsed.some(a=>a.featured)) parsed.slice(0,3).forEach(a=>a.featured=true);
+    DATA=parsed;
+    try{
+      localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),data:DATA}));
+    }catch(e){}
+    buildTagBtns();
+    buildHero(DATA.filter(a=>a.featured));
+    startTimer();
+    renderCards();
+  }catch(e){
+    console.warn('Apps Script 無法連線（本機開啟或網路問題），顯示內嵌資料:', e.message);
+  }
 }
 
 document.getElementById('searchInput').addEventListener('input',e=>{searchQ=e.target.value;page=1;renderCards()});
